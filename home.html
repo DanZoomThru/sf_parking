@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <title>Real Time SF Parking Availability</title>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/stylesheets/bootstrap.spacelab.min.css"/>
+    <link rel="stylesheet" href="/stylesheets/bootstrap-responsive.min.css"/>
+    <link rel="stylesheet" href="/stylesheets/custom.css"/>
+    
+   <script src="http://maps.googleapis.com/maps/api/js?key=AIzaSyAs8gZ7J9GJlYb0ZoTPe8BYLYT1EMr5n50&sensor=false"></script>
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js"></script>
+    
+    <!--<script type="text/javascript" src="source/maps_lib.js"></script>-->
+    
+    <script>
+    var map;
+    var marker;
+    var lat;
+    var points=new Array();
+    var markers=[];
+    var infoWindow;
+       //Places Markers on the map given the lat/lng
+       function placeMarker(location) {
+            //If there is already a marker, moves the marker
+            if ( marker ) {
+                map.overlayMapTypes.setAt(0, null);
+                var latitude=location.lat();
+                var longitude=location.lng();
+                marker.setPosition(location);
+                var url="http://sfparkinfo.appspot.com/parking";
+                var params="latitude="+latitude+"&"+"longitude="+longitude;
+                var http=new XMLHttpRequest();
+                http.open("POST", url, true);
+                for (var i = 0; i < markers.length; i++) {//Clears the map of markers before new ones are placed
+                    markers[i].setMap(null);
+                }
+                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                http.onreadystatechange = function() {//Call a function when the state changes.
+                    if(http.readyState == 4 && http.status == 200) {
+                        var data=JSON.parse(http.responseText);
+                        var lng=data.longitude;
+                        lat=data.latitude;
+                        var name=data.name1;
+                        var description=data.desc;
+                        var occupied=data.taken;
+                        var total=data.total;
+                        var type=data.kind;
+                        for(var i=0; i<lat.length; i++){//Place markers
+                            points[i]=new google.maps.LatLng(lat[i], lng[i]);
+                            var avail=parseFloat(total[i])-parseFloat(occupied[i])
+                            if(type[i]=='ON'){ //For on street parking, have a different marker color
+                                marker1 = new google.maps.Marker({
+                                position: points[i],
+                                map: map,
+                                title: name[i]+"\n"+description[i]+ " "+ "\n"+"Number of spaces available:  "+avail,
+                                icon: '/static/green.png'
+                                });
+                            }
+                            else{
+                                marker1 = new google.maps.Marker({
+                                position: points[i],
+                                map: map,
+                                title: name[i]+"\n"+description[i]+ " "+ "\n"+"Number of spaces available:  "+avail,
+                                //icon: '/static/default.gif'
+                                });
+                            }
+                            var len = points.length;
+                            popupDirections(marker1, len, points);
+                            markers.push(marker1);
+                         }
+
+
+                    } //inner if   
+                
+                 
+                } //anon func
+                http.send(params);
+            }//if
+           else {
+                //At the beginning, no marker
+                marker = new google.maps.Marker({
+                    position: location,
+                    map: map
+                });//marker
+                var latitude=location.lat();
+                
+                var longitude=location.lng();
+                marker.setPosition(location);
+                var url="http://sfparkinfo.appspot.com/parking";
+                var params="latitude="+latitude+"&"+"longitude="+longitude;
+                var http=new XMLHttpRequest();
+                http.open("POST", url, true);
+                
+                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                http.onreadystatechange = function() {//Call a function when the state changes.
+                if(http.readyState == 4 && http.status == 200) {
+                    var data=JSON.parse(http.responseText);
+                    var lng=data.longitude;
+                    var lat=data.latitude;
+                    var name=data.name1;
+                    var description=data.desc;
+                    var occupied=data.taken;
+                    var total=data.total;
+                    var type =data.kind;
+                    for(var i=0; i<lat.length; i++){
+                        points[i]=new google.maps.LatLng(lat[i], lng[i]);
+                        var avail=parseFloat(total[i])-parseFloat(occupied[i])
+                        if(type[i]=='ON'){ //For on street parking, have a different marker color
+                            marker1 = new google.maps.Marker({
+                            position: points[i],
+                            map: map,
+                            title: name[i]+"\n"+description[i]+ " "+ "\n"+"Number of spaces available:  "+avail,
+                            icon: '/static/green.png'
+                            });
+                        }
+                        else{
+                            marker1 = new google.maps.Marker({
+                            position: points[i],
+                            map: map,
+                            title: name[i]+"\n"+description[i]+ " "+ "\n"+"Number of spaces available:  "+avail,
+                            //icon: '/static/default.gif'
+                            });
+                        }
+                        var len = points.length;
+                        popupDirections(marker1, len, points);
+                        markers.push(marker1);
+                    }
+                }//inner if
+            
+                
+                }//anon func
+                http.send(params);
+            }//else
+        }  //placeMarker 
+        //Initializes the Google Map to initially display
+        function initialize()
+        {
+            var mapProp = {
+                center:new google.maps.LatLng(37.784173, -122.401557),
+                zoom:14,
+                mapTypeId:google.maps.MapTypeId.ROADMAP
+            };
+
+        map=new google.maps.Map(document.getElementById('googleMap'), mapProp);
+        infowindow = new google.maps.InfoWindow({maxWidth: 355});
+        var street=map.getStreetView();
+        street.setPosition(map.getCenter());
+        //Event handler for clicking on the map
+        google.maps.event.addListener(map, 'click', function(event) {
+
+            placeMarker(event.latLng);
+        });
+        }//initialize
+        //this function created listener listens for click on a marker
+        function popupDirections(marker, len, points) {
+            
+            
+            google.maps.event.addListener(marker, 'click', function () {
+            var stopNames=new Array();
+            for (var i = 0; i < len; i++) {
+                infowindow.setContent(marker.title);//"Current street address: " + marker.address+"<br/>"+ "Speed: "+ marker.speed+" km/hr"+"<br/>"+"Vehicle ID number: "+marker.id+"<br/>"+"Heading: "+marker.direction+" degrees");
+                } //sets the content of your global infowindow 
+            infowindow.open(map, marker); //then opens the infowindow at the marker
+             
+            });
+        }//popopDirections
+        
+
+      
+        google.maps.event.addDomListener(window, 'load', initialize);
+</script>
+
+</head>
+  <body>
+    
+    <div class='navbar'>
+      <div class='navbar-inner'>
+        <div class='container'>
+          <a class='brand' href=''>Real Time SF Parking Info</a>
+        </div>
+      </div>
+    </div>
+    <div class='container-fluid'>
+      <div class='row-fluid'>
+        <div class='span4'>
+          <p>This app uses Google App Engine to find real time parking information in San Francisco. 
+            Click on the map to find parking space info near the spot you clicked.</p>
+          <div class='well'>
+            <h4>
+             Click anywhere in the city of San Francisco,
+             (note: there are more parking spaces near the Financial District)
+             and markers will appear denoting either off or on street parking.
+             Green markers are for on street parking, red for off street.
+             Either click on a marker for information, or hover your mouse tip over it. 
+            </h4>
+            
+              
+             <div id="result"> </div>
+             <div id="result1"></div>
+          </div>
+          <div class='well'>
+            <!-- Once you decide what filter you want, place the HTML code here. The section in the maps_lib.js is also marked. Once you're done, feel free to delete this explanatory section.-->
+
+            <h4>Feedback? Suggestions? Job Offers?</h4>
+            <p>I can be reached  <a href="mailto:amandaclrk15@gmail.com"> here</a></p>
+            <div class='row-fluid'>
+              <div class='span6'>
+               
+              </div>
+              <div class='span6'>
+                
+              </div>
+            </div>
+          </div>
+          <p class='alert alert-info lead' id='result_count'></p>
+        </div>
+        
+          <div id='googleMap' style="width:800px;height:480px;position:absolute;left:500px"></div>
+          
+        
+      </div>
+    </div>
+
+    
+    <script type='text/javascript'>
+      
+
+
+    </script>
+  </body>
+</html>

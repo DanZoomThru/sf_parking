@@ -1,0 +1,115 @@
+﻿<head>
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyBPcU5cFH5iHW_f8B2iGIFCOZ02YIZ2uM0&sensor=false"></script>
+
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.js"></script>
+
+<link type="text/css" rel="stylesheet" href="/stylesheets/master.css" />
+
+</head>
+
+<div id="googleMap" style="width:400px;height:380px;">
+    
+</div>
+<form action ="/stops" method="post">
+<h2>Find real time MUNI arrivals!</h2>
+ <strong>Select MUNI light rail or bus:</strong>
+       <select id="line" onchange="calcRoute(this);" name="lines">
+         {% for k, v in routes.items() %}
+       
+       <option value="{{k}}">{{v}}</option>
+       {% endfor %}
+   </select>
+     <br />
+     <b>Select Inbound or Outbound </b>
+     <select id="direction" onchange="calcRoute(this)" name="dir">
+     
+     <option value="Inbound">Inbound</option>
+     <option value="Outbound">Outbound</option>
+     </select>
+     <br />
+    
+     </form>
+     
+
+
+
+    <div id="result"> </div>
+
+    <div id="result1"></div>
+
+     <script>
+        /*This function passes the line and stop to the server to get the latitude
+        and longitude to plot*/
+        function calcTimes(){
+            var stop = document.getElementById("stop").value;
+            var line=document.getElementById("line").value;
+            var url="http://localhost:9090/times";
+            var params="stop="+stop+"&"+"line="+line;
+            var http=new XMLHttpRequest();
+            http.open("POST", url, true);
+            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            http.onreadystatechange = function() {//Call a function when the state changes.
+                if(http.readyState == 4 && http.status == 200) {
+                    var data=JSON.parse(http.responseText);//Lat and Long are returned via JSON
+                    var lat=data.latitude;
+                    var lng=data.longitude;
+                    initialize(lat, lng);//Function that displays map
+                    getTimes(params);//function that gets the times
+                }
+            }
+    
+            http.send(params);
+        }//calcTimes
+          
+        //Passes line and stop id in order to get times
+        function getTimes(params){
+            var http=new XMLHttpRequest();
+            var url="http://localhost:9090/final"
+            http.open("POST", url, true);
+            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            http.onreadystatechange = function() {//Call a function when the state changes.
+                if(http.readyState == 4 && http.status == 200) {
+                    document.getElementById("result1").innerHTML = http.responseText;//puts times in the right div
+                }
+            }
+             http.send(params);
+        }
+
+        //Places a Google Map with a pin at the coordinates of the stopimap
+        function initialize(lat, lng){                                 
+            var mapProp = {
+            center:new google.maps.LatLng(lat,lng),
+            zoom:19,
+            mapTypeId:google.maps.MapTypeId.ROADMAP
+            };
+            
+            var point=new google.maps.LatLng(lat,lng)
+            var map=new google.maps.Map(document.getElementById("googleMap") ,mapProp);
+            marker = new google.maps.Marker({
+                    position: point,
+                    map: map,
+            });
+        }//initialize
+         
+        //Gets the stops for the selected route and direction
+        function calcRoute() {
+            var stop = document.getElementById("line").value;
+            var bound = document.getElementById("direction").value;
+            var url="http://localhost:9090/stops";
+            var params="stop="+stop+"&"+"bound="+bound;
+            var http=new XMLHttpRequest();
+            http.open("POST", url, true);
+  
+            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            http.onreadystatechange = function() {//Call a function when the state changes.
+                if(http.readyState == 4 && http.status == 200) {
+                    document.getElementById("result").innerHTML = http.responseText;
+                }
+            }
+     
+            http.send(params);
+        }//calcRoute
+         
+         
+     
+     </script>

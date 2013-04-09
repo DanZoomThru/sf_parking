@@ -1,0 +1,24 @@
+<html>
+<head>
+<script>
+
+     </script>
+     </head>
+<body>
+<h1>Select a stop:<br></h1>
+
+<select id="stop" onchange="calcTimes();"  name="stops">
+	
+	
+	{% for k, v in stopnames.items() %}
+	
+<option value="{{k}}">{{v}}</option>
+{% endfor %}
+
+</select>
+
+
+
+</div>
+</body>
+</html>
